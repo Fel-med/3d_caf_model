@@ -1,36 +1,38 @@
-// src/main.js
+import "./style.css";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 
-let carRoot = null;
 let targetMaterials = [];
 let originalStates = [];
 let stripTexturesForSolidColor = false;
 
-// ---------- Make the page non-scroll (important for mobile) ----------
+// ---- lock page scroll (mobile friendly) ----
 document.documentElement.style.height = "100%";
 document.body.style.height = "100%";
 document.body.style.margin = "0";
 document.body.style.overflow = "hidden";
 
-// ---------- Scene ----------
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xf4f6fb);
-
-// ---------- Camera ----------
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.01, 50000);
-
-// ---------- Renderer ----------
+// ---- Renderer ----
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.domElement.style.display = "block";
-renderer.domElement.style.width = "100%";
-renderer.domElement.style.height = "100%";
 document.body.appendChild(renderer.domElement);
 
-// ---------- Lights ----------
+// ---- Scene / Camera ----
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xf4f6fb);
+
+const camera = new THREE.PerspectiveCamera(
+  60,
+  window.innerWidth / window.innerHeight,
+  0.01,
+  50000
+);
+
+// ---- Lights ----
 scene.add(new THREE.AmbientLight(0xffffff, 1.15));
 
 const key = new THREE.DirectionalLight(0xffffff, 1.6);
@@ -45,13 +47,13 @@ const rim = new THREE.DirectionalLight(0xffffff, 0.55);
 rim.position.set(0, 6, -10);
 scene.add(rim);
 
-// ---------- Controls ----------
+// ---- Controls ----
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 controls.enablePan = false;
 
-// ---------- UI ----------
+// ---- UI ----
 const ui = document.createElement("div");
 ui.className = "ui";
 ui.innerHTML = `
@@ -91,8 +93,8 @@ ui.innerHTML = `
 `;
 document.body.appendChild(ui);
 
-const style = document.createElement("style");
-style.textContent = `
+const css = document.createElement("style");
+css.textContent = `
   .ui{
     position:fixed;
     left:16px;
@@ -100,7 +102,7 @@ style.textContent = `
     width:320px;
     max-width: calc(100vw - 32px);
     max-height: calc(100vh - 32px);
-    overflow: auto;
+    overflow:auto;
 
     padding:14px 14px 12px;
     border-radius:18px;
@@ -140,15 +142,12 @@ style.textContent = `
     cursor:pointer;
     transition: transform .08s ease, background .12s ease, border-color .12s ease;
   }
-
   .chip:hover{
     transform:translateY(-1px);
     background:rgba(255,255,255,.10);
     border-color:rgba(255,255,255,.35)
   }
-
   .chip:active{transform:translateY(0)}
-
   .chip span{
     display:block;
     width:100%;
@@ -163,9 +162,7 @@ style.textContent = `
     align-items:center;
     gap:10px;
   }
-
   .grow{flex:1}
-
   .label{font-size:12px;opacity:.85;width:55px}
 
   #picker{
@@ -185,56 +182,39 @@ style.textContent = `
     transition: background .12s ease, border-color .12s ease;
     flex-shrink:0;
   }
-
   .btn:hover{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.28)}
   .hint{font-size:12px;opacity:.75}
   .status{margin-top:10px;font-size:12px;opacity:.88;line-height:1.25}
 
-  /* ------- MOBILE LAYOUT: bottom sheet ------- */
   @media (max-width: 520px){
     .ui{
       left: 10px;
       right: 10px;
       bottom: 10px;
       width: auto;
-
       border-radius: 20px;
       padding: 12px;
-
-      /* keep it compact, avoid covering whole screen */
       max-height: 42vh;
     }
-
-    .palette{
-      grid-template-columns: repeat(8, 1fr);
-      gap: 7px;
-    }
-
     .chip span{ height: 24px; }
-
     .title{ font-size: 15px; }
     .subtitle{ font-size: 11px; }
-
-    /* Make inputs easier to tap */
     #picker{ width: 52px; height: 36px; }
     .btn{ padding: 8px 12px; }
   }
 
-  /* Even smaller devices: allow palette wrap */
   @media (max-width: 360px){
-    .palette{
-      grid-template-columns: repeat(6, 1fr);
-    }
+    .palette{ grid-template-columns: repeat(6, 1fr); }
   }
 `;
-document.head.appendChild(style);
+document.head.appendChild(css);
 
 const statusEl = ui.querySelector("#status");
 const picker = ui.querySelector("#picker");
 const resetBtn = ui.querySelector("#resetBtn");
 const solidChk = ui.querySelector("#solid");
 
-// ---------- Fit camera ----------
+// ---- helpers ----
 function fitCameraToObject(cam, object, orbit, offset = 1.35) {
   const box = new THREE.Box3().setFromObject(object);
   const size = box.getSize(new THREE.Vector3());
@@ -255,28 +235,30 @@ function fitCameraToObject(cam, object, orbit, offset = 1.35) {
   orbit.update();
 }
 
-// ---------- Collect recolorable materials ----------
 function collectRecolorableMaterials(root) {
   const set = new Set();
-
   root.traverse((obj) => {
     if (!obj.isMesh) return;
-
     const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
     mats.forEach((m) => {
       if (!m || !m.color) return;
-
-      // Skip glass-like transparency
       if (m.transparent === true && m.opacity !== undefined && m.opacity < 0.98) return;
-
       set.add(m);
     });
   });
-
   return Array.from(set);
 }
 
-// ---------- Apply color (stronger paint) ----------
+// ✅ IMPORTANT: we restore maps when solid is OFF, and remove maps when solid is ON
+function syncTexturesWithSolidToggle() {
+  targetMaterials.forEach((mat, i) => {
+    const st = originalStates[i];
+    if (!st) return;
+    mat.map = stripTexturesForSolidColor ? null : st.map;
+    mat.needsUpdate = true;
+  });
+}
+
 function applyColor(hex) {
   if (targetMaterials.length === 0) {
     statusEl.textContent = "No materials detected to recolor.";
@@ -285,16 +267,16 @@ function applyColor(hex) {
 
   const col = new THREE.Color(hex);
 
-  targetMaterials.forEach((mat) => {
+  targetMaterials.forEach((mat, i) => {
     mat.color.copy(col);
 
-    if (stripTexturesForSolidColor) {
-      mat.map = null; // makes color pop (removes dark baked texture)
-    }
+    // ✅ restore or remove texture depending on toggle
+    const st = originalStates[i];
+    if (st) mat.map = stripTexturesForSolidColor ? null : st.map;
 
+    // Keep paint feeling “car-like”
     if ("roughness" in mat) mat.roughness = 0.22;
     if ("metalness" in mat) mat.metalness = 0.08;
-
     if ("clearcoat" in mat) mat.clearcoat = 1.0;
     if ("clearcoatRoughness" in mat) mat.clearcoatRoughness = 0.08;
 
@@ -304,9 +286,7 @@ function applyColor(hex) {
   statusEl.textContent = `Color: ${hex.toUpperCase()} (materials: ${targetMaterials.length})`;
 }
 
-window.setCarColor = applyColor;
-
-// ---------- UI events ----------
+// ---- UI events ----
 ui.querySelectorAll(".chip").forEach((btn) => {
   btn.addEventListener("click", () => {
     const c = btn.getAttribute("data-color");
@@ -319,40 +299,52 @@ picker.addEventListener("input", (e) => applyColor(e.target.value));
 
 solidChk.addEventListener("change", () => {
   stripTexturesForSolidColor = solidChk.checked;
+  syncTexturesWithSolidToggle();
+
+  // re-apply current picker color so user sees correct result immediately
+  applyColor(picker.value);
+
   statusEl.textContent = stripTexturesForSolidColor
     ? "Solid ON ✅ (strong paint color)"
-    : "Solid OFF (tint textures)";
+    : "Solid OFF ✅ (textures restored)";
 });
 
-// Reset
 resetBtn.addEventListener("click", () => {
   if (targetMaterials.length === 0) return;
+
+  // Reset toggle
+  stripTexturesForSolidColor = false;
+  solidChk.checked = false;
 
   targetMaterials.forEach((mat, i) => {
     const st = originalStates[i];
     if (!st) return;
 
     mat.color.copy(st.color);
+    mat.map = st.map;
+
     if ("roughness" in mat && st.roughness !== undefined) mat.roughness = st.roughness;
     if ("metalness" in mat && st.metalness !== undefined) mat.metalness = st.metalness;
     if ("clearcoat" in mat && st.clearcoat !== undefined) mat.clearcoat = st.clearcoat;
-    if ("clearcoatRoughness" in mat && st.clearcoatRoughness !== undefined) mat.clearcoatRoughness = st.clearcoatRoughness;
+    if ("clearcoatRoughness" in mat && st.clearcoatRoughness !== undefined)
+      mat.clearcoatRoughness = st.clearcoatRoughness;
 
-    mat.map = st.map;
     mat.needsUpdate = true;
   });
 
   statusEl.textContent = "Reset ✅";
 });
 
-// ---------- Load model ----------
-console.log(import.meta.env.BASE_URL)
-const modelUrl = `${import.meta.env.BASE_URL}models/model_fast.glb`;
+// ---- Load model (Meshopt-enabled) ----
 const loader = new GLTFLoader();
+loader.setMeshoptDecoder(MeshoptDecoder);
+
+const modelUrl = `${import.meta.env.BASE_URL}models/model.glb`;
+
 loader.load(
   modelUrl,
   (gltf) => {
-    carRoot = gltf.scene;
+    const carRoot = gltf.scene;
     scene.add(carRoot);
 
     carRoot.traverse((o) => {
@@ -383,7 +375,7 @@ loader.load(
   }
 );
 
-// ---------- Animate ----------
+// ---- Render loop ----
 function animate() {
   controls.update();
   renderer.render(scene, camera);
@@ -391,7 +383,7 @@ function animate() {
 }
 animate();
 
-// ---------- Resize ----------
+// ---- Resize ----
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();

@@ -346,9 +346,10 @@ resetBtn.addEventListener("click", () => {
 });
 
 // ---------- Load model ----------
+const modelUrl = `${import.meta.env.BASE_URL}models/model.glb`;
 const loader = new GLTFLoader();
 loader.load(
-  "/models/model.glb",
+  modelUrl,
   (gltf) => {
     carRoot = gltf.scene;
     scene.add(carRoot);

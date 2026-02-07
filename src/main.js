@@ -346,6 +346,7 @@ resetBtn.addEventListener("click", () => {
 });
 
 // ---------- Load model ----------
+console.log(import.meta.env.BASE_URL)
 const modelUrl = `${import.meta.env.BASE_URL}models/model.glb`;
 const loader = new GLTFLoader();
 loader.load(
